@@ -22,7 +22,8 @@ def preprocess_review(review_raw: str, max_length_words: int) -> list:
         review.
     """
     max_length_words = 50
+    review_new = review_raw.replace('<br />', ' ')
     review_new = ''.join(
-        [char for char in review_raw if char not in punctuation])
-    review_new = review_new.lower().split(' ')[:max_length_words]
+        [char for char in review_new if char not in punctuation])
+    review_new = review_new.split()[:max_length_words]
     return review_new

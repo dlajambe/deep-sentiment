@@ -3,6 +3,8 @@ import pandas as pd
 from modules.data_preprocessing import preprocess_review
 
 def main():
+    """Entry point into the program."""
+
     # Step 1 - Load the data
     data_raw_df = pd.read_csv('data/imdb_dataset.csv')
 

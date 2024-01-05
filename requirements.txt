@@ -3,6 +3,7 @@ Brotli==1.0.9
 certifi==2023.11.17
 cffi==1.16.0
 charset-normalizer==2.0.4
+colorama==0.4.6
 cryptography==41.0.7
 filelock==3.13.1
 gmpy2==2.1.2
@@ -31,7 +32,10 @@ six==1.16.0
 sympy==1.12
 torch==2.1.2
 torchaudio==2.1.2
+torchdata==0.7.1
+torchtext==0.16.2
 torchvision==0.16.2
+tqdm==4.65.0
 typing_extensions==4.7.1
 tzdata==2023.3
 urllib3==1.26.18

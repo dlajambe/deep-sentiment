@@ -1,10 +1,10 @@
-# Deep Sentiment
+# Deep Sentiment Transformer
 
-Using deep learning to determine the sentiment of movie reviews.
+Using a transformer-based deep learning model to classify the sentiment of movie reviews.
 
 ## Description
 
-This project involves the creation and evaluation of a deep neural network to classify the sentiment of movie reviews as positive or negative. The IMDB movie reviews dataset was used to train and evaluate the model and is available in the `app/data` directory.
+This project involves the creation and evaluation of a deep neural network to classify the sentiment of movie reviews as positive or negative. The IMDb movie reviews dataset was used to train and evaluate the model and is available in the `app/data` directory. Although the IMDb dataset is [available through PyTorch](https://pytorch.org/text/stable/datasets.html#imdb), it was created from scratch in this project to demonstrate how PyTorch's Dataset and DataLoader classes can be used to interact with a user-provided dataset.
 
 To reduce training time and mitigate the risk of overfitting to the relatively small training data set, [GloVe pretrained word embeddings](https://nlp.stanford.edu/projects/glove/) were used. These embeddings have already been trained on a massive corpus of internet text data and generalize well to new use cases. In addition, they are in multiple vocabulary sizes and embedding dimensions, which gives some leeway in tuning them as hyperparameters. Conveniently, they can be imported as a Python class through PyTorch's [torchtext.data](https://torchtext.readthedocs.io/en/latest/vocab.html#glove) module.
 

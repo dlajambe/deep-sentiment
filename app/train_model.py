@@ -5,7 +5,11 @@ from modules.data_preprocessing import tokenize_review, TokenDataset
 from hyperparameters import HyperParameters as params
 from torchtext.vocab import GloVe
 import torch
+from torch.utils.data import DataLoader
+from torch.optim import Adam
 import time
+from torch.nn import BCELoss
+from modules.sentiment_nn import SentimentNet
 
 def create_model():
     """
@@ -18,6 +22,7 @@ def create_model():
 
     # Training can be accomplished faster on a GPU, if available
     start_time = time.perf_counter()
+    torch.manual_seed(params.seed)
 
     if torch.cuda.is_available():
         device = 'cuda'
@@ -62,7 +67,7 @@ def create_model():
     # can be vectorized in advance instead of being vectorized on the
     # fly during training, saving a significant amount of time. However,
     # doing this does cost significantly more memory.
-    y = torch.zeros(size=(len(reviews),))
+    y = torch.zeros(size=(len(reviews), 1))
     x = torch.zeros(size=(len(reviews), params.block_size, params.n_embed))
     for i in range(len(reviews)):
         x[i] = glove.get_vecs_by_tokens(reviews[i])
@@ -72,6 +77,28 @@ def create_model():
     print('Total script runtime: {} seconds'.format(end_time - start_time))
 
     dataset = TokenDataset(x, y)
+    data_loader = DataLoader(
+        dataset,
+        shuffle=True,
+        drop_last=True,
+        batch_size=params.batch_size)
+    
+    model = SentimentNet(params.n_embed, params.block_size)
+    model.train()
+    optimizer = Adam(model.parameters(), lr=params.lr)
+    criterion = BCELoss()
+    for i in range(params.max_epochs):
+        losses = []
+        for xb, yb in data_loader:
+            optimizer.zero_grad()
+            xb = xb.view(params.batch_size, -1)
+            yb_p = model.forward(xb)
+            loss = criterion.forward(yb_p, yb)
+            loss.backward()
+            optimizer.step()
+            losses.append(loss.item())
+        loss_mean = sum(losses)/float(len(losses))
+        print('Epoch {0} loss: {1}'.format(i, loss_mean))
 
 if __name__ == '__main__':
     create_model()

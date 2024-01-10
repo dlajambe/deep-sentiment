@@ -6,10 +6,9 @@ from hyperparameters import HyperParameters as params
 from torchtext.vocab import GloVe
 import torch
 from torch.utils.data import DataLoader
-from torch.optim import Adam
 import time
 from torch.nn import BCELoss
-from modules.sentiment_nn import SentimentNet
+from modules.sentiment_nn import SentimentNet, train_model
 
 def create_model():
     """
@@ -76,6 +75,8 @@ def create_model():
     end_time = time.perf_counter()
     print('Total script runtime: {} seconds'.format(end_time - start_time))
 
+    # Creating a DataLoader makes it easy to iterate over batches during
+    # training
     dataset = TokenDataset(x, y)
     data_loader = DataLoader(
         dataset,
@@ -83,22 +84,10 @@ def create_model():
         drop_last=True,
         batch_size=params.batch_size)
     
+    # Step 4 - Initialize and train the model
     model = SentimentNet(params.n_embed, params.block_size)
-    model.train()
-    optimizer = Adam(model.parameters(), lr=params.lr)
-    criterion = BCELoss()
-    for i in range(params.max_epochs):
-        losses = []
-        for xb, yb in data_loader:
-            optimizer.zero_grad()
-            xb = xb.view(params.batch_size, -1)
-            yb_p = model.forward(xb)
-            loss = criterion.forward(yb_p, yb)
-            loss.backward()
-            optimizer.step()
-            losses.append(loss.item())
-        loss_mean = sum(losses)/float(len(losses))
-        print('Epoch {0} loss: {1}'.format(i, loss_mean))
+    train_model(
+        model, data_loader, params.max_epochs, params.batch_size, params.lr)
 
 if __name__ == '__main__':
     create_model()

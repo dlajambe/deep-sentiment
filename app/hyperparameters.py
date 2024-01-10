@@ -5,8 +5,16 @@ class HyperParameters:
     # Used to ensure deterministic results during random batch selection
     seed = 1337
 
+    # Determines the fraction of the data that are assigned (randomly)
+    # to each data partition
+    partitions_fracs = {
+        'train': 0.6,
+        'val': 0.2,
+        'test': 0.2
+    }
+
     # Max reviews - can be reduced to reduce runtime
-    max_reviews = 1000
+    max_reviews = 50000
 
     # Reviews longer than the block size are truncated to reduce
     # training time. However, this destroys information and can result

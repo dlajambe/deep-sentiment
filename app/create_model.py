@@ -1,14 +1,15 @@
 import pandas as pd
 
-from modules.data_preprocessing import tokenize_review, TokenDataset
+from modules.data_preprocessing import tokenize_review
 
 from hyperparameters import HyperParameters as params
 from torchtext.vocab import GloVe
 import torch
-from torch.utils.data import DataLoader
 import time
-from torch.nn import BCELoss
 from modules.sentiment_nn import SentimentNet, train_model
+
+import random
+import math
 
 def create_model():
     """
@@ -22,6 +23,7 @@ def create_model():
     # Training can be accomplished faster on a GPU, if available
     start_time = time.perf_counter()
     torch.manual_seed(params.seed)
+    random.seed(params.seed)
 
     if torch.cuda.is_available():
         device = 'cuda'
@@ -75,19 +77,33 @@ def create_model():
     end_time = time.perf_counter()
     print('Total script runtime: {} seconds'.format(end_time - start_time))
 
-    # Creating a DataLoader makes it easy to iterate over batches during
-    # training
-    dataset = TokenDataset(x, y)
-    data_loader = DataLoader(
-        dataset,
-        shuffle=True,
-        drop_last=True,
-        batch_size=params.batch_size)
-    
+    # Step 4 - Data partitioning
+    # A training, validation, and testing partion are required to train
+    # the model's parameters, determine when to stop training, and
+    # evaluate the final model's performance, respectively
+    indices = [i for i in range(len(x))]
+    random.shuffle(indices)
+    val_start = math.ceil(params.partitions_fracs['train']*len(indices))
+    test_start = val_start + math.ceil(
+        params.partitions_fracs['val']*len(indices))
+    train = indices[:val_start]
+    val = indices[val_start:test_start]
+    test = indices[test_start:]
+    print('Data partition fractions:')
+    print('\tTraining: {}\t'.format(len(train)/len(indices)))
+    print('\tValidation: {}\t'.format(len(val)/len(indices)))
+    print('\tTesting: {}\t'.format(len(test)/len(indices)))
+
+   
     # Step 4 - Initialize and train the model
-    model = SentimentNet(params.n_embed, params.block_size)
+    x = x.to(device)
+    y = y.to(device)
+    model = SentimentNet(params.n_embed, params.block_size).to(device)
+    print('Beginning model training')
     train_model(
-        model, data_loader, params.max_epochs, params.batch_size, params.lr)
+        model, 
+        x[train], y[train], x[val], y[val],
+        params.max_epochs, params.batch_size, params.lr)
 
 if __name__ == '__main__':
     create_model()

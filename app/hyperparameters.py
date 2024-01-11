@@ -14,13 +14,13 @@ class HyperParameters:
     }
 
     # Max reviews - can be reduced to reduce runtime
-    max_reviews = 1000
+    max_reviews = 10000
 
     # Reviews longer than the block size are truncated to reduce
     # training time. However, this destroys information and can result
     # in worse model performance; when training a model for production,
     # the block size should be kept as high as possible.
-    block_size = 100
+    block_size = 200
 
     # The number of embeddings must be divisible by the number of heads
     n_embed = 50

@@ -119,14 +119,21 @@ def train_model(
         drop_last=True,
         batch_size=batch_size)
     
-    def estimate_loss(model: SentimentNet, data_loader: DataLoader):
+    def estimate_loss(
+            model: SentimentNet, 
+            data_loader: DataLoader) -> tuple[float, float]:
         with torch.no_grad():
             losses = []
-            for xb, yb in data_loader_train:
+            accuracies = []
+            for xb, yb in data_loader:
                 yb_p = model.forward(xb)
+                labels = torch.round(yb_p)
                 loss = criterion.forward(yb_p, yb)
                 losses.append(loss.item())
-            return sum(losses)/float(len(losses))
+                accuracies.append(torch.sum(labels == yb).item() / float(yb.shape[0]))
+            loss_mean = sum(losses)/float(len(losses))
+            accuracy_mean = sum(accuracies)/float(len(accuracies))
+            return loss_mean, accuracy_mean
         
     for i in range(max_epochs):
         for xb, yb in data_loader_train:
@@ -137,8 +144,10 @@ def train_model(
             optimizer.step()
 
         with torch.no_grad():
-            loss_train = estimate_loss(model, data_loader_train)
-            loss_val = estimate_loss(model, data_loader_val)
+            loss_train, accuracy_train = estimate_loss(
+                model, data_loader_train)
+            loss_val, accuracy_val = estimate_loss(model, data_loader_val)
 
-        print('\tEpoch: {0}\tLoss (train): {1}\tLoss (val): {2}'.format(
-            i, round(loss_train, 4), round(loss_val, 4)))
+        print('\tEpoch: {0}\tLoss (train): {1}\tLoss (val): {2}\tAccuracy (train): {3}\tAccuracy (val): {4}'.format(
+            i, round(loss_train, 4), round(loss_val, 4), 
+            round(accuracy_train, 4), round(accuracy_val, 4)))

@@ -28,7 +28,6 @@ def create_model():
         device = 'cuda'
     else:
         device = 'cpu'
-    device = 'cpu'
     print('Device: {}'.format(device))
 
     # Step 1 - Load the data
@@ -77,7 +76,7 @@ def create_model():
 
    
     # Step 4 - Initialize and train the model
-    model = SentimentNet(params.n_embed, params.block_size).to(device)
+    model = SentimentNet(params.n_embed, params.block_size, device).to(device)
     print('Beginning model training')
     dataset_train = TokenDataset(
         [reviews[idx] for idx in train],
@@ -90,7 +89,7 @@ def create_model():
     train_model(
         model, 
         dataset_train, dataset_val,
-        params.max_epochs, params.batch_size, params.lr)
+        params.max_epochs, params.batch_size, params.lr, device)
     
     end_time = time.perf_counter()
     print('Total script runtime: {} seconds'.format(end_time - start_time))

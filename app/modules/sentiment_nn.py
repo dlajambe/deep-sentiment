@@ -34,13 +34,15 @@ class TransformerBlock(nn.Module):
 class SentimentNet(nn.Module):
     """A transformer-based language model for classifying the sentiment
     of English language text blocks."""
-    def __init__(self, n_embed: int, block_size: int):
+    def __init__(self, n_embed: int, block_size: int, device: str):
         super(SentimentNet, self).__init__()
-        
+        if device != 'cuda' and device != 'cpu':
+            raise ValueError(
+                'Invalid device received. Must be "cuda" or "cpu"')
         # Positional embeddings are required so that the location of
         # tokens within a block can be used to generate features
         self.pos_embed = nn.Embedding(block_size, n_embed)
-        self.positions = torch.arange(block_size, device='cpu')
+        self.positions = torch.arange(block_size, device=device)
 
         self.trans = TransformerBlock(n_embed, block_size, 5)
         self.fc = nn.Linear(n_embed, 1)
@@ -67,7 +69,8 @@ def train_model(
         dataset_val: TokenDataset,
         max_epochs: int,
         batch_size: int,
-        lr: float):
+        lr: float,
+        device: str):
     """Trains a SentimentNet neural network using the provided
     hyperparameters.
 
@@ -100,6 +103,9 @@ def train_model(
 
     lr : float
         The learning rate to be applied during training.
+
+    device : str ['cuda', 'cpu']
+        The device on which to train the model.
     """
     model.train()
     optimizer = Adam(model.parameters(), lr=lr)
@@ -126,6 +132,9 @@ def train_model(
             losses = []
             accuracies = []
             for xb, yb in data_loader:
+                xb = xb.to(device)
+                yb = yb.to(device)
+
                 yb_p = model.forward(xb)
                 labels = torch.round(yb_p)
                 loss = criterion.forward(yb_p, yb)
@@ -137,6 +146,9 @@ def train_model(
         
     for i in range(max_epochs):
         for xb, yb in data_loader_train:
+            xb = xb.to(device)
+            yb = yb.to(device)
+            
             optimizer.zero_grad()
             yb_p = model.forward(xb)
             loss = criterion.forward(yb_p, yb)

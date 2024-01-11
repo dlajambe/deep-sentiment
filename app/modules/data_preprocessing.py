@@ -50,8 +50,20 @@ def tokenize_review(review_raw: str, block_size: int) -> list[str]:
     return review_new
 
 class TokenDataset(Dataset):
-    """Stores a tensor-based dataset containing tokenized x and y data.
+    """Stores a text dataset containing tokenized x data and targets.
+    The targets are stored as tensors, whereas the x-data are stored as
+    strings and converted to tensors on-the-fly by GloVe word 
+    embeddings. 
+    
+    Although it is slower to convert tokens to vector embeddings on-the-
+    fly repeatedly, it is for medium to large datasets because
+    converting the tokens to embedding vectors dramatically increases
+    the dimensionality of the x-data. If the x tensors are calculated in
+    advance, they must be stored in memrory, which can easily overload
+    the computer's memory capacity.
 
+    When converted to tensor format, the x-data is of shape (N, T, C),
+    where:
     - N: Total number of token sequences in the dataset
     - T: Bock size, i.e. the number of tokens per sequence
     - C: Number of embeddings per token
@@ -74,7 +86,6 @@ class TokenDataset(Dataset):
         if len(reviews) != len(sentiment):
             raise ValueError(
                 'reviews and sentiment must have the same number of samples')
-        
         y = torch.zeros(size=(len(reviews),))
         for i in range(len(y)):
             y[i] = sentiment[i]

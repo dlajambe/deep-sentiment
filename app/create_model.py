@@ -29,6 +29,7 @@ def create_model():
         device = 'cuda'
     else:
         device = 'cpu'
+    device = 'cpu'
     print('Device: {}'.format(device))
 
     # Step 1 - Load the data
@@ -68,14 +69,11 @@ def create_model():
     # can be vectorized in advance instead of being vectorized on the
     # fly during training, saving a significant amount of time. However,
     # doing this does cost significantly more memory.
-    y = torch.zeros(size=(len(reviews), 1))
+    y = torch.zeros(size=(len(reviews),))
     x = torch.zeros(size=(len(reviews), params.block_size, params.n_embed))
     for i in range(len(reviews)):
         x[i] = glove.get_vecs_by_tokens(reviews[i])
         y[i] = sentiment[i]
-
-    end_time = time.perf_counter()
-    print('Total script runtime: {} seconds'.format(end_time - start_time))
 
     # Step 4 - Data partitioning
     # A training, validation, and testing partion are required to train
@@ -104,6 +102,10 @@ def create_model():
         model, 
         x[train], y[train], x[val], y[val],
         params.max_epochs, params.batch_size, params.lr)
+    
+    end_time = time.perf_counter()
+    print('Total script runtime: {} seconds'.format(end_time - start_time))
+
 
 if __name__ == '__main__':
     create_model()

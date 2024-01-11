@@ -68,9 +68,6 @@ class TokenDataset(Dataset):
             raise ValueError(
                 'Expected 3 dimensions in x, received {}.'.
                 format(len(x.shape)))
-        elif len(y.shape) != 2:
-            raise ValueError(
-                'Expected 2 dimensions in y, received {}.'.format(len(y.shape)))
         elif y.shape[0] != x.shape[0]:
             raise ValueError('x and y must have the same number of samples (N)')
         self._x = x

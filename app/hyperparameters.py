@@ -14,7 +14,7 @@ class HyperParameters:
     }
 
     # Max reviews - can be reduced to reduce runtime
-    max_reviews = 50000
+    max_reviews = 1000
 
     # Reviews longer than the block size are truncated to reduce
     # training time. However, this destroys information and can result

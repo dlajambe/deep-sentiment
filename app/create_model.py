@@ -1,9 +1,8 @@
 import pandas as pd
 
-from modules.data_preprocessing import tokenize_review
+from modules.data_preprocessing import tokenize_review, TokenDataset
 
 from hyperparameters import HyperParameters as params
-from torchtext.vocab import GloVe
 import torch
 import time
 from modules.sentiment_nn import SentimentNet, train_model
@@ -59,27 +58,11 @@ def create_model():
     print('Vocab size: {}'.format(len(vocab)))
     print('Sample review: \n\t{}'.format(reviews[9]))
 
-    # Step 3 - Convert the data to Tensor format
-
-    # The movie reviews dataset is too small to train word emebddings,
-    # so pretrained embeddings (GloVe) are used instead
-    glove = GloVe(name="6B", dim=params.n_embed)
-
-    # Since static, pre-trained embeddings are being used, the reviews
-    # can be vectorized in advance instead of being vectorized on the
-    # fly during training, saving a significant amount of time. However,
-    # doing this does cost significantly more memory.
-    y = torch.zeros(size=(len(reviews),))
-    x = torch.zeros(size=(len(reviews), params.block_size, params.n_embed))
-    for i in range(len(reviews)):
-        x[i] = glove.get_vecs_by_tokens(reviews[i])
-        y[i] = sentiment[i]
-
-    # Step 4 - Data partitioning
+    # Step 3 - Data partitioning
     # A training, validation, and testing partion are required to train
     # the model's parameters, determine when to stop training, and
     # evaluate the final model's performance, respectively
-    indices = [i for i in range(len(x))]
+    indices = [i for i in range(len(reviews))]
     random.shuffle(indices)
     val_start = math.ceil(params.partitions_fracs['train']*len(indices))
     test_start = val_start + math.ceil(
@@ -94,13 +77,19 @@ def create_model():
 
    
     # Step 4 - Initialize and train the model
-    x = x.to(device)
-    y = y.to(device)
     model = SentimentNet(params.n_embed, params.block_size).to(device)
     print('Beginning model training')
+    dataset_train = TokenDataset(
+        [reviews[idx] for idx in train],
+        [sentiment[idx] for idx in train],
+        params.n_embed)
+    dataset_val = TokenDataset(
+        [reviews[idx] for idx in val], 
+        [sentiment[idx] for idx in val],
+        params.n_embed)
     train_model(
         model, 
-        x[train], y[train], x[val], y[val],
+        dataset_train, dataset_val,
         params.max_epochs, params.batch_size, params.lr)
     
     end_time = time.perf_counter()

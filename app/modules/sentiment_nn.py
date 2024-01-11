@@ -48,16 +48,23 @@ class SentimentNet(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         input = x + self.pos_embed(self.positions)
         features = self.trans(input)
+
+        # A sentiment logit has been calculated for each token in a
+        # sequence, but we require only one class logit per sequence
+        # Using the average of all logits to calculate the class logit
+        # of each sequence. 
         features = features.mean(dim=1)
+
+        # The logits must be converted to probabilities with the sigmoid
+        # function because the BCE loss function requires them in this
+        # form
         y_p = F.sigmoid(self.fc(features).view(x.shape[0],))
         return y_p
     
 def train_model(
         model: SentimentNet,
-        x_train: torch.Tensor,
-        y_train: torch.Tensor,
-        x_val: torch.Tensor,
-        y_val: torch.Tensor,
+        dataset_train: TokenDataset,
+        dataset_val: TokenDataset,
         max_epochs: int,
         batch_size: int,
         lr: float):
@@ -77,17 +84,11 @@ def train_model(
     model : SentimentNet
         The neural network to be trained.
 
-    x_train : Tensor
-        The input data for the training partition.
+    dataset_train : TokenDataset
+        The training dataset.
 
-    y_train : Tensor
-        The target data for the training partition.
-
-    x_val : Tensor
-        The input data for the validation partition.
-
-    y_val : Tensor
-        The target data for the validation partition.
+    dataset_val : TokenDataset
+        The validation dataset.
 
     max_epochs : int
         The maximum number of passes through the entire training dataset
@@ -107,11 +108,26 @@ def train_model(
     # Creating a DataLoader makes it easy to iterate over batches during
     # training
     data_loader_train = DataLoader(
-        TokenDataset(x_train, y_train),
+        dataset_train,
         shuffle=True,
         drop_last=True,
         batch_size=batch_size)
     
+    data_loader_val = DataLoader(
+        dataset_val,
+        shuffle=True,
+        drop_last=True,
+        batch_size=batch_size)
+    
+    def estimate_loss(model: SentimentNet, data_loader: DataLoader):
+        with torch.no_grad():
+            losses = []
+            for xb, yb in data_loader_train:
+                yb_p = model.forward(xb)
+                loss = criterion.forward(yb_p, yb)
+                losses.append(loss.item())
+            return sum(losses)/float(len(losses))
+        
     for i in range(max_epochs):
         for xb, yb in data_loader_train:
             optimizer.zero_grad()
@@ -121,11 +137,8 @@ def train_model(
             optimizer.step()
 
         with torch.no_grad():
-            y_train_p = model.forward(x_train)
-            loss_train = criterion.forward(y_train_p, y_train)
-            
-            y_val_p = model.forward(x_val)
-            loss_val = criterion.forward(y_val_p, y_val)
+            loss_train = estimate_loss(model, data_loader_train)
+            loss_val = estimate_loss(model, data_loader_val)
 
         print('\tEpoch: {0}\tLoss (train): {1}\tLoss (val): {2}'.format(
-            i, loss_train.item(), loss_val.item()))
+            i, round(loss_train, 4), round(loss_val, 4)))

@@ -1,8 +1,10 @@
 from string import punctuation
 import torch
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset
 
-def tokenize_review(review_raw: str, block_size: int) -> list:
+from torchtext.vocab import GloVe
+
+def tokenize_review(review_raw: str, block_size: int) -> list[str]:
     """Converts a review to a token by separating the review into a list
     of preprocessed words. 
     
@@ -24,7 +26,7 @@ def tokenize_review(review_raw: str, block_size: int) -> list:
 
     Returns
     -------
-    review_new : list
+    review_new : list[str]
         A list of strings (words) representing the final, tokenized
         review.
     """
@@ -56,25 +58,36 @@ class TokenDataset(Dataset):
 
     Attributes
     ----------
-    _x : Tensor
-        A tensor of shape (N, T, C) containing the x data.
+    _reviews : list[list[str]]
+        A list of lists, each contianing the string representation of a
+        single sample. These are converted to torch tensors on-the-fly.
 
     _y : Tensor
         A tensor of shape (N,) containing the class labels for each
         sample in _x.
     """
-    def __init__(self, x: torch.Tensor, y: torch.Tensor) -> None:
-        if len(x.shape) != 3:
+    def __init__(
+            self, 
+            reviews: list[list[str]], 
+            sentiment: list[str],
+            n_embed: int) -> None:
+        if len(reviews) != len(sentiment):
             raise ValueError(
-                'Expected 3 dimensions in x, received {}.'.
-                format(len(x.shape)))
-        elif y.shape[0] != x.shape[0]:
-            raise ValueError('x and y must have the same number of samples (N)')
-        self._x = x
+                'reviews and sentiment must have the same number of samples')
+        
+        y = torch.zeros(size=(len(reviews),))
+        for i in range(len(y)):
+            y[i] = sentiment[i]
+        self._reviews = reviews
         self._y = y
+
+        # The movie reviews dataset is too small to train word emebddings,
+        # so pretrained embeddings (GloVe) are used instead
+        self.glove = GloVe(name="6B", dim=n_embed)
 
     def __len__(self) -> int:
         return self._y.shape[0]
-    
+
     def __getitem__(self, idx: int) -> [torch.Tensor, torch.Tensor]:
-        return self._x[idx], self._y[idx]
+        x = self.glove.get_vecs_by_tokens(self._reviews[idx])
+        return x, self._y[idx]

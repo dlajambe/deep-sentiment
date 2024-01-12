@@ -1,11 +1,14 @@
+import os
+
 import pandas as pd
 
 from modules.data_preprocessing import tokenize_review, TokenDataset
 
 from hyperparameters import HyperParameters as params
 import torch
+from torch.utils.data import DataLoader
 import time
-from modules.sentiment_nn import SentimentNet, train_model
+from modules.sentiment_nn import SentimentNet, train_model, calc_metrics
 
 import random
 import math
@@ -91,8 +94,32 @@ def create_model():
         dataset_train, dataset_val,
         params.max_epochs, params.batch_size, params.lr, device)
     
+    # Step 5 - Estimate the model's performance using the testing data
+    dataset_test = TokenDataset(
+        [reviews[idx] for idx in test], 
+        [sentiment[idx] for idx in test],
+        params.n_embed)
+    data_loader_test = DataLoader(
+        dataset_test,
+        shuffle=True,
+        drop_last=True,
+        batch_size=params.batch_size)
+    
+    model.eval()
+    loss_test, accuracy_test = calc_metrics(model, data_loader_test, device)
+    print('Final model performance metrics:')
+    print('\tLoss (test): {0}\tAccuracy (test): {1}'.format(
+        round(loss_test, 4), round(accuracy_test, 4))
+    )
     end_time = time.perf_counter()
     print('Total script runtime: {} seconds'.format(end_time - start_time))
+
+    # Step 6 - Export the model
+    output_dir = 'output/'
+    if os.path.isdir(output_dir) == False:
+        os.mkdir(output_dir)
+
+    torch.save(model.state_dict(), output_dir + 'sentiment_transformer.pth')
 
 
 if __name__ == '__main__':

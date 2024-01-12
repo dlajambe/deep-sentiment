@@ -1,9 +1,9 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
 from torch.utils.data import DataLoader
 from torch.optim import Adam
+
 from modules.data_preprocessing import TokenDataset
 
 class TransformerBlock(nn.Module):
@@ -62,7 +62,54 @@ class SentimentNet(nn.Module):
         # form
         y_p = F.sigmoid(self.fc(features).view(x.shape[0],))
         return y_p
-    
+
+def calc_metrics(
+        model: nn.Module,
+        data_loader: DataLoader,
+        device: str) -> tuple[float, float]:
+    """Calculates the mean binary cross entropy loss and mean accuracy
+    of a model over a dataset.
+
+    Parameters
+    ----------
+    model : Module
+        The PyTorch model whose loss and accuracy are to be calculated.
+
+    data_loader : DataLoader
+        The data loader containing the dataset over which the mean loss
+        and accuracy are to be calculated.
+
+    device : str {'cuda', 'cpu'}
+        The device on which the calculations are to be performed.
+
+    Returns
+    -------
+    loss_mean : float
+        The mean loss of the model over the provided dataset.
+
+    accuracy_mean : float
+        The mean accuracy of the model over the provided dataset.
+    """
+    criterion = nn.BCELoss()
+
+    # No need to waste time calculating gradients when calculating
+    # metrics since backpropagation will not occur
+    with torch.no_grad():
+        losses = []
+        accuracies = []
+        for xb, yb in data_loader:
+            xb = xb.to(device)
+            yb = yb.to(device)
+
+            yb_p = model.forward(xb)
+            labels = torch.round(yb_p)
+            loss = criterion.forward(yb_p, yb)
+            losses.append(loss.item())
+            accuracies.append(torch.sum(labels == yb).item() / float(yb.shape[0]))
+        loss_mean = sum(losses)/float(len(losses))
+        accuracy_mean = sum(accuracies)/float(len(accuracies))
+        return loss_mean, accuracy_mean
+
 def train_model(
         model: SentimentNet,
         dataset_train: TokenDataset,
@@ -70,7 +117,7 @@ def train_model(
         max_epochs: int,
         batch_size: int,
         lr: float,
-        device: str):
+        device: str) -> None:
     """Trains a SentimentNet neural network using the provided
     hyperparameters.
 
@@ -112,7 +159,7 @@ def train_model(
     criterion = nn.BCELoss()
 
     # Creating a DataLoader makes it easy to iterate over batches during
-    # training
+    # training and performance calculation
     data_loader_train = DataLoader(
         dataset_train,
         shuffle=True,
@@ -125,41 +172,37 @@ def train_model(
         drop_last=True,
         batch_size=batch_size)
     
-    def estimate_loss(
-            model: SentimentNet, 
-            data_loader: DataLoader) -> tuple[float, float]:
-        with torch.no_grad():
-            losses = []
-            accuracies = []
-            for xb, yb in data_loader:
-                xb = xb.to(device)
-                yb = yb.to(device)
-
-                yb_p = model.forward(xb)
-                labels = torch.round(yb_p)
-                loss = criterion.forward(yb_p, yb)
-                losses.append(loss.item())
-                accuracies.append(torch.sum(labels == yb).item() / float(yb.shape[0]))
-            loss_mean = sum(losses)/float(len(losses))
-            accuracy_mean = sum(accuracies)/float(len(accuracies))
-            return loss_mean, accuracy_mean
-        
+    loss_val_min = float('inf')
+    best_model = {}
     for i in range(max_epochs):
         for xb, yb in data_loader_train:
             xb = xb.to(device)
             yb = yb.to(device)
-            
+
             optimizer.zero_grad()
             yb_p = model.forward(xb)
             loss = criterion.forward(yb_p, yb)
             loss.backward()
             optimizer.step()
 
-        with torch.no_grad():
-            loss_train, accuracy_train = estimate_loss(
-                model, data_loader_train)
-            loss_val, accuracy_val = estimate_loss(model, data_loader_val)
+        # Performance metrics are calculated at the end of each epoch
+        model.eval()
+        loss_train, accuracy_train = calc_metrics(
+            model, data_loader_train, device)
+        loss_val, accuracy_val = calc_metrics(
+            model, data_loader_val, device)
+        model.train()
+        
+        # To avoid overfitting, the model parameters that maximize
+        # performance on the validation dataset are saved
+        if loss_val < loss_val_min:
+            loss_val_min = loss_val
+            best_model = model.state_dict()
 
         print('\tEpoch: {0}\tLoss (train): {1}\tLoss (val): {2}\tAccuracy (train): {3}\tAccuracy (val): {4}'.format(
             i, round(loss_train, 4), round(loss_val, 4), 
             round(accuracy_train, 4), round(accuracy_val, 4)))
+    
+    # Training is now finished, so the model parameters are set to the
+    # performance-maximizing set prior to function termination
+    model.load_state_dict(best_model)

@@ -56,7 +56,6 @@ def create_model():
             break
 
     print('Number of reviews: {}'.format(len(reviews)))
-    print('Max review length (words): {}'.format(params.block_size))
     print('Vocab size: {}'.format(len(vocab)))
     print('Sample review: \n\t{}'.format(reviews[9]))
 
@@ -79,7 +78,10 @@ def create_model():
 
    
     # Step 4 - Initialize and train the model
-    model = SentimentNet(params.n_embed, params.block_size, device).to(device)
+    params.print()
+    model = SentimentNet(
+        params.n_embed, params.block_size, params.n_heads,
+        params.dropout_frac, device).to(device)
     print('Beginning model training')
     dataset_train = TokenDataset(
         [reviews[idx] for idx in train],

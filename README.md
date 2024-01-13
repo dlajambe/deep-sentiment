@@ -26,7 +26,7 @@ The project includes a configuration file, `hyperparameters.py`, which can be us
 
 The application can be started locally through the command line. With your virtual environment activated, navigate to the `app/` directory and execute the following command to train the model: 
 ```
-python train_model.py
+python create_model.py
 ```
 
 ### Updating the environment files

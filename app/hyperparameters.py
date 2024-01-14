@@ -20,11 +20,11 @@ class HyperParameters:
     # training time. However, this destroys information and can result
     # in worse model performance; when training a model for production,
     # the block size should be kept as high as possible.
-    block_size = 200
+    block_size = 400
 
     # The number of embeddings must be divisible by the number of heads
-    n_embed = 50
-    n_heads = 5
+    n_embed = 200
+    n_heads = 8
     if n_embed not in [50, 100, 200, 300]:
         raise ValueError('GloVe embeddings must of dim 50, 100, 200, or 300')
     elif n_embed % n_heads != 0:

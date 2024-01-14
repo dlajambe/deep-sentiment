@@ -13,7 +13,7 @@ class TransformerBlock(nn.Module):
         super(TransformerBlock, self).__init__()
         if n_embed % n_heads != 0:
             raise ValueError('n_embed must be a multiple of n_heads')
-        self.attention = nn.MultiheadAttention(
+        self.multihead = nn.MultiheadAttention(
             n_embed, n_heads,
             dropout=dropout_frac,
             batch_first=True)
@@ -29,9 +29,10 @@ class TransformerBlock(nn.Module):
         self.layer_norm_2 = nn.LayerNorm(n_embed)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        attention, _ = self.attention(x, x, x)
-        attention = self.layer_norm_1(attention)
-        features = self.layer_norm_2(self.feed_forward(attention))
+        x = self.layer_norm_1(x)
+        attention, _ = self.multihead(x, x, x)
+        attention = self.layer_norm_2(attention)
+        features = self.feed_forward(attention)
         return features
 
 class SentimentNet(nn.Module):
@@ -80,7 +81,6 @@ class SentimentNet(nn.Module):
         # tokens within a block can be used to generate features
         self.pos_embed = nn.Embedding(block_size, n_embed)
         self.positions = torch.arange(block_size, device=device)
-        self.dropout = nn.Dropout(dropout_frac)
 
         self.trans = TransformerBlock(
             n_embed, block_size, n_heads, dropout_frac)
@@ -91,16 +91,16 @@ class SentimentNet(nn.Module):
         self.fc = nn.Sequential(
             nn.Linear(n_embed, int(n_embed/2)),
             nn.ReLU(),
-            self.dropout,
+            nn.Dropout(dropout_frac),
             nn.Linear(int(n_embed/2), int(n_embed/4)),
             nn.ReLU(),
-            self.dropout,
+            nn.Dropout(dropout_frac),
             nn.Linear(int(n_embed/4), 1)
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         input = x + self.pos_embed(self.positions)
-        features = self.trans(input)
+        features = self.trans.forward(input)
 
         # A sentiment logit has been calculated for each token in a
         # sequence, but we require only one class logit per sequence
@@ -108,10 +108,11 @@ class SentimentNet(nn.Module):
         # of each sequence. 
         features = features.mean(dim=1)
 
+        logits = self.fc.forward(features)
         # The logits must be converted to probabilities with the sigmoid
         # function because the BCE loss function requires them in this
         # form
-        y_p = F.sigmoid(self.fc(features).view(x.shape[0],))
+        y_p = F.sigmoid(logits.view(x.shape[0],))
         return y_p
 
 def calc_metrics(
@@ -224,6 +225,9 @@ def train_model(
     
     loss_val_min = float('inf')
     best_model = {}
+    print('Beginning model training')
+    print('\t* = new best model saved')
+    n_epochs_since_best = 0
     for i in range(max_epochs):
         for xb, yb in data_loader_train:
             xb = xb.to(device)
@@ -250,17 +254,25 @@ def train_model(
             loss_val_min = loss_val
             best_model = model.state_dict()
             new_best = True
+            n_epochs_since_best = 0
+        else:
+            n_epochs_since_best += 1
         output_msg = (
             '\tEpoch: {}\tLoss (train): {:.4f}\tLoss (val): {:.4f}\t'
             'Accuracy (train): {:.4f}\tAccuracy (val): {:.4f}'.
             format(
-                i, 
+                i,
                 round(loss_train, 4), 
                 round(loss_val, 4), 
                 round(accuracy_train, 4),
                 round(accuracy_val, 4)))
         if new_best:
             output_msg += '\t*'
+        elif n_epochs_since_best >= 8:
+            # TODO: Replace with propoer detect_overfitting() function
+            # that takes in the history of validation losses
+            print('\tOverfitting detected - training terminated')
+            break
         print(output_msg)
     
     # Training is now finished, so the model parameters are set to the

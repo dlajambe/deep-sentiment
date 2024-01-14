@@ -82,7 +82,7 @@ def create_model():
     model = SentimentNet(
         params.n_embed, params.block_size, params.n_heads,
         params.dropout_frac, device).to(device)
-    print('Beginning model training')
+    
     dataset_train = TokenDataset(
         [reviews[idx] for idx in train],
         [sentiment[idx] for idx in train],
@@ -92,7 +92,7 @@ def create_model():
         [sentiment[idx] for idx in val],
         params.n_embed)
     train_model(
-        model, 
+        model,
         dataset_train, dataset_val,
         params.max_epochs, params.batch_size, params.lr, device)
     
@@ -122,6 +122,7 @@ def create_model():
         os.mkdir(output_dir)
 
     torch.save(model.state_dict(), output_dir + 'sentiment_transformer.pth')
+    # TODO: Make a plot of accuracy vs amount of padding in review
 
 
 if __name__ == '__main__':

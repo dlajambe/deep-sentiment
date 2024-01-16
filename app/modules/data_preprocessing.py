@@ -5,8 +5,8 @@ from torch.utils.data import Dataset
 from torchtext.vocab import GloVe
 
 def tokenize_review(review_raw: str, block_size: int) -> list[str]:
-    """Converts a review to a token by separating the review into a list
-    of preprocessed words. 
+    """Converts a review to a token sequence by separating the review
+    into a list of preprocessed words. 
     
     Preprocessing steps applied:
     - Artifact removal
@@ -102,3 +102,46 @@ class TokenDataset(Dataset):
     def __getitem__(self, idx: int) -> [torch.Tensor, torch.Tensor]:
         x = self.glove.get_vecs_by_tokens(self._reviews[idx])
         return x, self._y[idx]
+    
+class DataPreprocessor():
+    """Tokenizes and vectorizes reviews into tensors so they can be fed
+    as input into a neural network.
+
+    If the review has a length of L after tokenization and n_embed = E,
+    the final output tensor will be of shape (L, E).
+
+    Attributes
+    ----------
+    n_embed : int {50, 100, 200, 300}
+        The dimensionality of the vectorized space into which the
+        tokenized sequence is to be projected by the embeddings.
+
+    glove : GloVe
+        The pretrained word embeddings used to vectorize the tokenized
+        reviews.
+    """
+    def __init__(self, n_embed: int) -> None:
+        self.glove = GloVe(name="6B", dim=n_embed)
+        self.n_embed = n_embed
+
+    def preprocess_review(self, review: str) -> torch.Tensor:
+        """Fully preprocesses a review by tokenizing it and then
+        transforming into vector embeddings.
+
+        The end result is a 2-dimensional tensor that is ready to be fed
+        as input into a neural network.
+
+        Parameters
+        ----------
+        review : str
+            The review to be preprocessed.
+
+        Returns
+        -------
+        review_tensor : Tensor
+            The tokenized and vectorized review.  
+        """
+        review_tokens = tokenize_review(review)
+        review_tensor = self.glove.get_vecs_by_tokens(review_tokens)
+        review_tensor = review_tensor.view(self.n_embed, -1)
+        return review_tensor

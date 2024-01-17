@@ -10,10 +10,6 @@ To reduce training time and mitigate the risk of overfitting to the relatively s
 
 ## Getting Started
 
-### Dependencies
-
-To install, simply clone the repository onto your machine and use your virtual environment creation tool to recreate the environment with the provided requirements.txt file. If you have Anaconda or Miniconda, you can instead use the environment.yml to reproduce the environment.
-
 ### Installing
 
 To install, simply clone the repository onto your machine and use your virtual environment creation tool to recreate the environment with the provided `requirements.txt` file. If you have Anaconda or Miniconda, you can instead use the `environment.yml` to reproduce the environment.
